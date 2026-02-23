@@ -1,0 +1,33 @@
+
+% Save to CSV
+writematrix(out.simout, 'scope_data.csv');
+% Add header to the previously written CSV by rewriting with a header row.
+% Define header labels (modify as needed to match columns of out.simout)
+if exist('out','var') && isfield(out,'simout')
+    data = out.simout;
+else
+    error('Variable out.simout not found.');
+end
+
+% Create header cell array matching number of columns
+nCols = size(data,2);
+% Example generic headers: Col1, Col2, ...
+headers = arrayfun(@(k) sprintf('Col%d',k), 1:nCols, 'UniformOutput', false);
+
+% If column names are known, replace headers, e.g.:
+% headers = {'Time','Signal1','Signal2'};
+
+% Write header and data to CSV
+fid = fopen('scope_data.csv','w');
+if fid == -1
+    error('Unable to open scope_data.csv for writing.');
+end
+fprintf(fid, '%s', headers{1});
+for k = 2:nCols
+    fprintf(fid, ',%s', headers{k});
+end
+fprintf(fid, '\n');
+fclose(fid);
+
+% Append numeric data in default numeric format
+dlmwrite('scope_data.csv', data, '-append');

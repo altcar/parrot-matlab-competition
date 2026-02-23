@@ -1,0 +1,41 @@
+function [p_ref, o_ref] = myLogic2()
+    global globalR globalG globalB
+    persistent device
+    
+    % 1. Initialization
+    if isempty(device) || ~isvalid(device)
+        device = serialport("COM10", 115200); 
+    end
+    
+    % Default values if image data hasn't arrived yet
+    if isempty(globalR)
+        o_ref = single([0, 0, 0]);
+        p_ref = single([0.1, 0, -1.1]);
+        return;
+    end
+
+    % 2. Image Processing (Moved from myLogic)
+    R_d = double(globalR); G_d = double(globalG); B_d = double(globalB);
+    redDominance = R_d - (B_d/2) - (G_d/2); 
+    binaryMask = redDominance > 30; %output size 120 x 160 
+
+    columnSums = sum(binaryMask, 1);
+    totalWeight = sum(columnSums);
+    
+    if totalWeight > 0
+        centroidCol = sum((1:size(binaryMask, 2)) .* columnSums) / totalWeight;
+    else
+        centroidCol = 80; 
+    end
+
+    % 3. Serial Packing (Moved from myLogic)
+    % Note: Using the transpose logic to fix the "stripes" in Python
+    flatMask = uint8(binaryMask'); 
+    fullPacket = [uint8(flatMask(:))', single(centroidCol)]; 
+    write(device, fullPacket, "uint8"); 
+
+    % 4. Control Logic
+    error = double(centroidCol) - 80;
+    o_ref = single([0, 0, 0]); % [roll, pitch, yaw]
+     p_ref= single([5, error * 0.0008, -1.1]); % [globalX, globalY, globalZ]
+end
